@@ -9,6 +9,7 @@ if (cluster.isMaster) {
   cluster.setupMaster({
     exec: __dirname + "/app.js",
   });
+  console.log("__dirname :", __dirname + "/app.js");
 
   for (let i = 0; i < cpuCount; i++) {
     cluster.fork();

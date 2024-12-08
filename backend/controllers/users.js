@@ -3,15 +3,16 @@ const asyncErrCatcher = require("../middlewares/asyncErrCatcher.js");
 const users = require("../models/users.js");
 const bcrypt = require("bcryptjs");
 const userAuthToken = require("../utils/userAuthToken.js");
+const userAuth = require("../middlewares/userAuth.js");
 
 router.post(
-  "/sign-up",
+  "/register",
   asyncErrCatcher(async (req, res, next) => {
     try {
       console.log("route hit!");
-      const { name, email, password } = req.body;
-
-      if (!name || !email || !password) {
+      const { name, email, phoneNumber } = req.body;
+      console.log("name, email, phoneNumber :", name, email, phoneNumber);
+      if (!name || !email || !phoneNumber) {
         return res.status(400).json({
           message: "Please provide all required paramters",
         });
@@ -19,7 +20,7 @@ router.post(
       if (
         typeof name !== "string" ||
         typeof email !== "string" ||
-        typeof password !== "string"
+        typeof phoneNumber !== "string"
       ) {
         return res.status(400).json({
           message: "please provide valid types!",
@@ -30,24 +31,43 @@ router.post(
         email,
       });
       if (existingUser) {
-        return res.status(409).json({
-          message: "User already exists!",
-        });
+        return userAuthToken(existingUser, res, 200);
+        // return res.status(409).json({
+        //   message: "User already exists with this email!",
+        // });
       }
-
-      const salt = await bcrypt.genSalt(12);
-      const hashedPass = await bcrypt.hash(password, salt);
 
       const newUser = await users.create({
         name,
         email,
-        password: hashedPass,
+        phoneNumber,
       });
       console.log("newUser:", newUser);
-      userAuthToken(newUser, res, 200);
+      return userAuthToken(newUser, res, 200);
     } catch (err) {
       console.error(err);
       next(err.message);
+    }
+  })
+);
+
+router.get(
+  "/get-all-users",
+  userAuth,
+  asyncErrCatcher(async (req, res, next) => {
+    try {
+      const currentUserId = req.user.id;
+      const usersList = await users
+        .find({ _id: { $ne: currentUserId } })
+        .sort({ createdAt: -1 });
+
+      res.status(200).json({
+        message: "Users fetched successfully",
+        users: usersList,
+      });
+    } catch (err) {
+      console.error(err);
+      next(err);
     }
   })
 );
